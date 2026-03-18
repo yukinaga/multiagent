@@ -1,0 +1,184 @@
+================================================================
+セクション2：環境構築 コマンド＋プロンプト集
+================================================================
+
+
+────────────────────────────────────────
+2.2 VSCodeのインストールと初期設定
+────────────────────────────────────────
+
+■ VSCodeダウンロード
+  https://code.visualstudio.com/
+
+■ 拡張機能のインストール（拡張機能パネルを開く）
+  Mac:      Cmd+Shift+X
+  Windows:  Ctrl+Shift+X
+
+  検索して入れる拡張機能：
+    1. Claude Code（発行元: Anthropic）
+    2. Python（発行元: Microsoft）
+
+■ 統合ターミナルを開く
+  Mac:      Cmd+`
+  Windows:  Ctrl+`
+
+■ ターミナル動作確認
+  echo hello
+
+
+────────────────────────────────────────
+2.3 Claude Codeのインストールと認証
+────────────────────────────────────────
+
+■ Claude Code本体のインストール
+
+  Mac / Linux:
+    curl -fsSL https://claude.ai/install.sh | bash
+
+  Mac（Homebrew）:
+    brew install --cask claude-code
+
+  Windows（PowerShell）:
+    irm https://claude.ai/install.ps1 | iex
+
+■ バージョン確認
+  claude --version
+
+■ 認証（ブラウザが自動で開く）
+  claude
+
+■ 認証のやり直し（すでにログイン済みの場合）
+  /login
+
+■ ターミナル版を終了する
+  /exit
+
+■ 動作確認（VSCodeのClaude Codeパネルで入力）
+  Hello! 自己紹介してください
+
+■ 会話のリセット
+  /clear
+
+■ トラブルシューティング
+  claude doctor
+
+■ VSCode拡張機能が反応しないとき（コマンドパレット）
+  Mac:      Cmd+Shift+P → Developer: Reload Window
+  Windows:  Ctrl+Shift+P → Developer: Reload Window
+
+
+────────────────────────────────────────
+2.4 uvのインストールとPython環境の準備
+────────────────────────────────────────
+
+■ uvのインストール
+
+  Mac / Linux:
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+
+  Windows（PowerShell）:
+    powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+■ バージョン確認
+  uv --version
+
+■ コース用プロジェクトの作成
+  mkdir ~/multi-agent-course
+  cd ~/multi-agent-course
+  uv init
+
+■ 生成されたファイルの確認
+  ls -la
+  cat pyproject.toml
+  cat .python-version
+
+■ パッケージの追加テスト
+  uv add requests
+
+■ パッケージの動作確認
+  uv run python -c "import requests; print(requests.__version__)"
+
+■ VSCodeでプロジェクトフォルダを開く
+  ファイル → フォルダーを開く → ~/multi-agent-course を選択
+
+■ pip → uv 対比表
+  ┌──────────────────┬─────────────────────────────┬─────────────────────────────────┐
+  │ やりたいこと     │ pip（従来）                 │ uv（このコース）                │
+  ├──────────────────┼─────────────────────────────┼─────────────────────────────────┤
+  │ パッケージ追加   │ pip install requests        │ uv add requests                 │
+  │ スクリプト実行   │ python script.py            │ uv run python script.py         │
+  │ テスト実行       │ pytest                      │ uv run pytest                   │
+  │ 環境の再構築     │ pip install -r requirements… │ uv sync                         │
+  └──────────────────┴─────────────────────────────┴─────────────────────────────────┘
+
+
+────────────────────────────────────────
+2.5 Gitの初期化とCLAUDE.mdの作成
+────────────────────────────────────────
+
+■ Gitリポジトリの初期化
+  cd ~/multi-agent-course
+  git init
+
+■ Gitの初期設定（未設定の場合）
+  git config --global user.name "あなたの名前"
+  git config --global user.email "あなたのメール"
+
+■ Gitインストール確認
+  git --version
+
+■ Gitインストール（未インストールの場合）
+  Mac:      xcode-select --install
+  Windows:  https://git-scm.com/ からダウンロード
+
+■ CLAUDE.md の内容
+─────────────────────────────
+# マルチエージェント入門コース
+
+## プロジェクト概要
+Claude Codeのマルチエージェント機能を学習する実習プロジェクト
+
+## 技術スタック
+- Python 3.12
+- パッケージ管理: uv（pipは使用しない）
+- テスト: pytest
+- フレームワーク: FastAPI（セクション7で使用）
+
+## 開発ルール
+- コメントとドキュメントは日本語で記述する
+- パッケージの追加は `uv add` を使う
+- スクリプト実行は `uv run python` を使う
+- テスト実行は `uv run pytest` を使う
+- pip install は絶対に使わないこと
+
+## ディレクトリ構成
+- src/ : メインのソースコード
+- tests/ : テストコード
+- docs/ : ドキュメント
+─────────────────────────────
+
+■ ディレクトリ構成の作成
+  mkdir src tests docs
+
+■ 空ディレクトリをGitに認識させる（必要な場合）
+  touch src/.gitkeep tests/.gitkeep docs/.gitkeep
+
+■ 初回コミット
+  git add .
+  git commit -m "プロジェクト初期化：uv + CLAUDE.md"
+
+
+================================================================
+セクション2 完了時点のプロジェクト構成
+================================================================
+
+  ~/multi-agent-course/
+  ├── CLAUDE.md
+  ├── pyproject.toml
+  ├── .python-version
+  ├── .venv/
+  ├── .git/
+  ├── main.py          ← uv init が生成（削除してOK）
+  ├── src/
+  ├── tests/
+  └── docs/

@@ -1,0 +1,285 @@
+================================================================
+セクション5：サブエージェント実践 — 品質改善パイプライン
+コマンド＋プロンプト集
+================================================================
+
+
+────────────────────────────────────────
+5.1 3つ目のエージェント：ドキュメントライター
+────────────────────────────────────────
+
+■ ファイルを手動で作成
+  .claude/agents/doc-writer.md
+
+■ doc-writer.md の内容
+─────────────────────────────
+---
+name: doc-writer
+description: プロジェクトのドキュメント作成を担当する専門家エージェント。
+  README.md、docstring、APIドキュメントなどの技術文書を生成・更新する。
+tools: Read, Write, Edit, Glob, Grep
+model: sonnet
+---
+
+# ドキュメントライター
+
+あなたはプロジェクトのドキュメント作成を担当する専門家です。
+
+## 基本ルール
+- 日本語でドキュメントを書くこと（コード中のコメントやdocstringも日本語）
+- パッケージ管理には pip ではなく uv を使う前提で記述すること
+- 既存のドキュメントがある場合は上書きせず、内容を統合・改善すること
+
+## 作業内容
+
+### README.md の作成・更新
+- プロジェクト概要
+- セットアップ手順（uv sync を使用）
+- 使い方の説明とコード例
+- ディレクトリ構成の説明
+
+### docstring の追加
+- すべての公開クラス・関数に Google Style の docstring を追加
+- 引数、戻り値、例外の説明を含める
+- 使用例（Example セクション）も可能な限り含める
+
+### その他のドキュメント
+- 必要に応じて CONTRIBUTING.md や CHANGELOG.md を作成
+- API リファレンスが必要な場合は docs/ ディレクトリに配置
+
+## 出力形式
+作業完了後、以下の形式でサマリーを報告すること：
+1. 作成・更新したファイルの一覧
+2. 各ファイルの主な変更内容
+3. ドキュメントのカバレッジ（docstringを追加した関数の割合など）
+─────────────────────────────
+
+■ 3エージェントの tools 比較
+  ┌───────────────────┬──────┬───────┬──────┬──────┬──────┬──────┐
+  │ エージェント      │ Read │ Write │ Edit │ Bash │ Glob │ Grep │
+  ├───────────────────┼──────┼───────┼──────┼──────┼──────┼──────┤
+  │ code-reviewer     │  ○   │  —    │  —   │  —   │  ○   │  ○   │
+  │ test-engineer     │  ○   │  ○    │  ○   │  ○   │  ○   │  ○   │
+  │ doc-writer        │  ○   │  ○    │  ○   │  —   │  ○   │  ○   │
+  └───────────────────┴──────┴───────┴──────┴──────┴──────┴──────┘
+
+  設計原則：エージェントごとに必要最小限の tools を渡す
+
+
+────────────────────────────────────────
+5.2 題材：既存コードの品質改善
+────────────────────────────────────────
+
+■ 演習用コード（src/todo.py に配置）
+─────────────────────────────
+import json
+
+class TodoList:
+    def __init__(self, filepath="todos.json"):
+        self.filepath = filepath
+        self.todos = []
+        self.next_id = 1
+        self.load()
+
+    def load(self):
+        f = open(self.filepath, "r")
+        data = json.load(f)
+        self.todos = data["todos"]
+        self.next_id = data["next_id"]
+        f.close()
+
+    def save(self):
+        f = open(self.filepath, "w")
+        json.dump({"todos": self.todos, "next_id": self.next_id}, f)
+        f.close()
+
+    def add(self, title):
+        todo = {"id": self.next_id, "title": title, "done": False}
+        self.todos.append(todo)
+        self.next_id += 1
+        self.save()
+        return todo
+
+    def list_all(self):
+        return self.todos
+
+    def complete(self, todo_id):
+        for todo in self.todos:
+            if todo["id"] == todo_id:
+                todo["done"] = True
+                self.save()
+                return todo
+
+    def delete(self, todo_id):
+        for i, todo in enumerate(self.todos):
+            if todo["id"] == todo_id:
+                self.todos.pop(i)
+                self.save()
+                return True
+
+    def search(self, keyword):
+        result = []
+        for todo in self.todos:
+            if keyword in todo["title"]:
+                result.append(todo)
+        return result
+
+    def get_stats(self):
+        total = len(self.todos)
+        done = 0
+        for todo in self.todos:
+            if todo["done"]:
+                done += 1
+        return {"total": total, "done": done, "pending": total - done, "rate": done / total}
+─────────────────────────────
+
+■ 意図的に仕込まれた問題点（4カテゴリ）
+
+  ① エラーハンドリングの不足
+    - ファイルが存在しない場合の処理がない（load → FileNotFoundError）
+    - 存在しないIDに対する処理がない（complete/delete → Noneが暗黙に返る）
+    - ゼロ除算のリスク（get_stats → done / total）
+
+  ② リソース管理の問題
+    - with文を使わないファイル操作（load, save）
+    - 例外発生時にファイルが閉じられない
+
+  ③ ドキュメントの欠如
+    - クラス・メソッドにdocstringがゼロ
+    - README.mdがない（または最低限）
+
+  ④ テストの欠如
+    - テストファイルがゼロ
+
+■ 各エージェントの担当
+  code-reviewer  → ①②を発見してレポート
+  test-engineer  → ④を解消（①②のエッジケースもテストで検証）
+  doc-writer     → ③を解消
+
+
+────────────────────────────────────────
+5.3 ステップ1：レビュー
+────────────────────────────────────────
+
+■ コンテキストをクリア
+  /clear
+
+■ code-reviewerにレビューを依頼するプロンプト
+  code-reviewer サブエージェントを使って、src/todo.py のコードレビューを行ってください。
+
+■ レビュー後の安全性確認（コードが変更されていないことの確認）
+  git diff
+
+■ ポイント
+  - code-reviewerはRead, Grep, Globのみ → コード変更リスクゼロ
+  - メインの会話にはレビュー結果のサマリーだけが返る
+  - レビュー結果は次のステップ（test-engineer）で活用するため /clear しない
+
+
+────────────────────────────────────────
+5.4 ステップ2：テスト追加
+────────────────────────────────────────
+
+■ /clear しない（前のレビュー結果をメイン会話に残す）
+
+■ test-engineerにテスト作成を依頼するプロンプト
+  先ほどの code-reviewer のレビュー結果を踏まえて、
+  test-engineer サブエージェントを使って src/todo.py のテストを作成・実行してください。
+  正常系だけでなく、レビューで指摘されたエッジケースもテストに含めてください。
+
+■ テストの手動再実行（結果の検証）
+  uv run pytest tests/ -v
+
+■ ポイント
+  - 「レビュー結果を踏まえて」と書くことで、Claude本体がPMとして文脈を橋渡しする
+  - test-engineer自身はcode-reviewerの結果を直接知らない（独立コンテキスト）
+  - test-engineerのエージェントループ：Read → Write → Bash → (Edit → Bash) の反復
+
+
+────────────────────────────────────────
+5.5 ステップ3：ドキュメント生成
+────────────────────────────────────────
+
+■ /clear しない（レビュー結果＋テスト結果をメイン会話に残す）
+
+■ doc-writerにドキュメント生成を依頼するプロンプト
+  doc-writer サブエージェントを使って、src/todo.py に docstring を追加し、
+  プロジェクトの README.md を作成してください。
+  先ほどの code-reviewer のレビュー結果と、test-engineer のテスト結果も
+  踏まえた内容にしてください。
+
+■ ポイント
+  - 前ステップの成果が後ステップの品質を高める（パイプラインの連鎖効果）
+  - doc-writerのツール呼び出し：Read → Edit（docstring追加） → Write（README作成）
+  - Bashは不要なので権限なし
+
+
+────────────────────────────────────────
+5.6 パイプラインとして実行する
+────────────────────────────────────────
+
+■ プロジェクトを初期状態にリセット
+  git checkout -- src/todo.py
+  rm -f tests/test_todo.py
+  rm -f README.md
+
+■ コンテキストをクリア
+  /clear
+
+■ パイプラインの一括実行プロンプト
+  src/todo.py の品質を改善してください。以下の3ステップを順番に実行してください。
+
+  1. code-reviewer サブエージェントでコードレビューを行う
+  2. test-engineer サブエージェントでテストを作成・実行する（レビュー結果を踏まえる）
+  3. doc-writer サブエージェントで docstring と README.md を生成する（レビュー結果とテスト結果を踏まえる）
+
+■ 一括実行のポイント
+  - ステップの順番を番号付きで明記する
+  - 後のステップが前のステップの結果を踏まえることを明示する
+  - Claude本体がPMとして3人のサブエージェントに順番に仕事を振る
+
+
+================================================================
+パイプラインの全体フロー
+================================================================
+
+  既存コード（問題あり）
+      │
+      ▼
+  [code-reviewer]  レビュー（読み取り専用）
+      │ レビュー結果サマリー
+      ▼
+  [test-engineer]  テスト作成＋実行
+      │ テスト結果サマリー
+      ▼
+  [doc-writer]     docstring＋README生成
+      │ ドキュメント生成サマリー
+      ▼
+  品質改善されたプロジェクト
+
+
+================================================================
+Before / After
+================================================================
+
+  Before（パイプライン実行前）：
+    src/todo.py     → docstringなし、エラーハンドリング不足
+    tests/          → 空
+    README.md       → なし（または最低限）
+    品質の可視化    → なし
+
+  After（パイプライン実行後）：
+    src/todo.py     → 全メソッドにdocstring追加
+    tests/test_todo.py → 正常系＋異常系のテスト追加
+    README.md       → セットアップ・使い方・構成を含む
+    品質の可視化    → レビューレポート＋テスト結果
+
+
+================================================================
+サブエージェント方式の限界（→ セクション6で解消）
+================================================================
+
+  - 3人は順番にしか動けない（並列実行不可）
+  - サブエージェント同士は直接コミュニケーションできない
+  - PM（Claude本体）経由の情報伝達に限界がある
+  → Agent Teams で解消される
